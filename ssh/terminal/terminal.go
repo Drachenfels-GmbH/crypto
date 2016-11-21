@@ -433,6 +433,20 @@ func (t *Terminal) handleKey(key rune) (line string, ok bool) {
 		return
 	}
 
+	if t.AutoCompleteCallback != nil {
+		prefix := string(t.line[:t.pos])
+		suffix := string(t.line[t.pos:])
+
+		t.lock.Unlock()
+		newLine, newPos, completeOk := t.AutoCompleteCallback(prefix+suffix, len(prefix), key)
+		t.lock.Lock()
+
+		if completeOk {
+			t.setLine([]rune(newLine), utf8.RuneCount([]byte(newLine)[:newPos]))
+			return
+		}
+	}
+
 	switch key {
 	case keyBackspace:
 		if t.pos == 0 {
@@ -538,19 +552,6 @@ func (t *Terminal) handleKey(key rune) (line string, ok bool) {
 		t.advanceCursor(visualLength(t.prompt))
 		t.setLine(t.line, t.pos)
 	default:
-		if t.AutoCompleteCallback != nil {
-			prefix := string(t.line[:t.pos])
-			suffix := string(t.line[t.pos:])
-
-			t.lock.Unlock()
-			newLine, newPos, completeOk := t.AutoCompleteCallback(prefix+suffix, len(prefix), key)
-			t.lock.Lock()
-
-			if completeOk {
-				t.setLine([]rune(newLine), utf8.RuneCount([]byte(newLine)[:newPos]))
-				return
-			}
-		}
 		if !isPrintable(key) {
 			return
 		}
